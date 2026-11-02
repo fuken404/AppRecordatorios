@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { TouchableOpacity, Text } from 'react-native';
+import { Platform, TouchableOpacity, Text } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
@@ -30,19 +30,19 @@ const screenOptions: NativeStackNavigationOptions = {
 
 export function RootNavigator() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
-  useNotifications(navigationRef);
+  const onNavigationReady = useNotifications(navigationRef);
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} onReady={onNavigationReady}>
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
           name="Home"
           component={HomeScreen}
           options={({ navigation }) => ({
-            title: 'Mis Recordatorios',
+            title: 'Recordatorios',
             headerRight: () => (
-              <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
-                <Text style={{ color: Colors.primary, fontWeight: '600', fontSize: 15 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('Categories')} hitSlop={12} accessibilityRole="button">
+                <Text style={{ color: Colors.primary, fontWeight: '600', fontSize: 15, paddingHorizontal: Platform.OS === 'web' ? 16 : 0 }}>
                   Categorías
                 </Text>
               </TouchableOpacity>

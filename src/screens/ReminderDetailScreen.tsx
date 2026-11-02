@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -15,6 +14,7 @@ import { CategoryBadge } from '../components/CategoryBadge';
 import { Colors } from '../constants/colors';
 import { formatDate, getNextOccurrences } from '../utils/dateHelpers';
 import { RECURRENCE_OPTIONS, DAY_LABELS } from '../constants/recurrence';
+import { confirmAction } from '../utils/dialogs';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReminderDetail'>;
 
@@ -43,36 +43,30 @@ export function ReminderDetailScreen({ route, navigation }: Props) {
     : [];
 
   function handleComplete() {
-    Alert.alert(
+    confirmAction(
       'Completar',
       isRecurring
         ? 'Se avanzará al siguiente ciclo del recordatorio.'
         : '¿Marcar como completado?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            await completeReminder(reminderId2);
-            navigation.goBack();
-          },
-        },
-      ],
+      'Confirmar',
+      async () => {
+        await completeReminder(reminderId2);
+        navigation.goBack();
+      },
     );
   }
 
   function handleDelete() {
-    Alert.alert('Eliminar', '¿Eliminar este recordatorio?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteReminder(reminderId2);
-          navigation.goBack();
-        },
+    confirmAction(
+      'Eliminar',
+      '¿Eliminar este recordatorio?',
+      'Eliminar',
+      async () => {
+        await deleteReminder(reminderId2);
+        navigation.goBack();
       },
-    ]);
+      true,
+    );
   }
 
   return (

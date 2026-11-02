@@ -26,7 +26,6 @@ export interface Reminder {
   recurrence: RecurrenceRule;
   status: ReminderStatus;
   completedAt?: string;
-  scheduledNotificationIds: string[];
   repeatIfNotCompleted: boolean;
   repeatIntervalMinutes?: number;
   createdAt: string;

@@ -6,13 +6,14 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Alert,
   Modal,
   ScrollView,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useCategories } from '../context/CategoriesContext';
+import { useReminders } from '../context/RemindersContext';
+import { confirmAction, showMessage } from '../utils/dialogs';
 import { Colors } from '../constants/colors';
 import { Category } from '../types';
 
@@ -24,6 +25,7 @@ function generateId() {
 
 export function CategoriesScreen(_props: Props) {
   const { categories, addCategory, deleteCategory } = useCategories();
+  const { clearCategory } = useReminders();
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [selectedColor, setSelectedColor] = useState(Colors.categoryPresets[0]);
@@ -43,13 +45,15 @@ export function CategoriesScreen(_props: Props) {
   }
 
   function handleDelete(cat: Category) {
-    Alert.alert(
+    confirmAction(
       'Eliminar categoría',
       `¿Eliminar "${cat.name}"? Los recordatorios con esta categoría quedarán sin categoría.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => deleteCategory(cat.id) },
-      ],
+      'Eliminar',
+      async () => {
+        await deleteCategory(cat.id);
+        await clearCategory(cat.id);
+      },
+      true,
     );
   }
 

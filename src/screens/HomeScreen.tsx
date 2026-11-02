@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -6,8 +6,8 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useReminders } from '../context/RemindersContext';
@@ -17,6 +17,8 @@ import { EmptyState } from '../components/EmptyState';
 import { FAB } from '../components/FAB';
 import { Colors } from '../constants/colors';
 import { isToday, isThisWeek } from '../utils/dateHelpers';
+import { confirmAction } from '../utils/dialogs';
+import { notificationsEnabled, openNotificationSettings } from '../notifications/notificationService';
 import { Reminder } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -34,6 +36,13 @@ export function HomeScreen({ navigation }: Props) {
   const { categories } = useCategories();
   const [filter, setFilter] = useState<Filter>('all');
   const [showCompleted, setShowCompleted] = useState(false);
+  const [notificationsOff, setNotificationsOff] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      notificationsEnabled().then((enabled) => setNotificationsOff(!enabled));
+    }, []),
+  );
 
   const categoryFilters = categories.map((c) => ({ label: c.name, value: c.id }));
   const allFilters = [...FILTERS, ...categoryFilters];
@@ -59,13 +68,11 @@ export function HomeScreen({ navigation }: Props) {
     if (!reminder) return;
 
     if (reminder.recurrence.frequency !== 'none') {
-      Alert.alert(
+      confirmAction(
         'Completar recordatorio',
         'Es un recordatorio recurrente. Se marcará como hecho y se programará la siguiente ocurrencia.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Confirmar', onPress: () => completeReminder(id) },
-        ],
+        'Confirmar',
+        () => completeReminder(id),
       );
     } else {
       completeReminder(id);
@@ -73,16 +80,21 @@ export function HomeScreen({ navigation }: Props) {
   }
 
   function handleDelete(id: string) {
-    Alert.alert('Eliminar recordatorio', '¿Seguro que quieres eliminarlo?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => deleteReminder(id) },
-    ]);
+    confirmAction('Eliminar recordatorio', '¿Seguro que quieres eliminarlo?', 'Eliminar', () => deleteReminder(id), true);
   }
 
   if (loading) return null;
 
   return (
     <View style={styles.container}>
+      {notificationsOff && (
+        <TouchableOpacity style={styles.permission} onPress={openNotificationSettings} accessibilityRole="button">
+          <Text style={styles.permissionText}>
+            Las notificaciones están desactivadas y no recibirás avisos. Toca para activarlas en Ajustes.
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Filtros */}
       <ScrollView
         horizontal
@@ -144,6 +156,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  permission: {
+    backgroundColor: Colors.warning,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  permissionText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600',
   },
   filtersContainer: {
     flexGrow: 0,

@@ -17,4 +17,7 @@ export const REPEAT_INTERVAL_OPTIONS = [
   { label: '2 horas', value: 120 },
 ];
 
-export const MAX_SCHEDULED_NOTIFICATIONS = 10;
+// iOS conserva 64 avisos pendientes por app y descarta el resto sin avisar.
+export const MAX_SCHEDULED_NOTIFICATIONS = 60;
+export const OCCURRENCES_PER_REMINDER = 30;
+export const NAGS_PER_OCCURRENCE = 2;

@@ -1,16 +1,13 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Linking } from 'react-native';
 import { Reminder } from '../types';
-import { getNextOccurrences } from '../utils/dateHelpers';
-import { MAX_SCHEDULED_NOTIFICATIONS } from '../constants/recurrence';
-import { addMinutes } from 'date-fns';
+import { notificationTitle, planNotifications } from './planner';
 
-// Configurar cómo se muestran las notificaciones cuando la app está abierta
+// Cómo se muestran las notificaciones cuando la app está abierta.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: true,
+    shouldSetBadge: false,
     shouldShowBanner: true,
     shouldShowList: true,
   }),
@@ -24,104 +21,42 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return status === 'granted';
 }
 
-/**
- * Programa todas las notificaciones para un recordatorio.
- * Cancela las anteriores si existen.
- * Devuelve los nuevos IDs programados.
- */
-export async function scheduleReminder(reminder: Reminder): Promise<string[]> {
-  // Cancelar notificaciones previas
-  await cancelReminderNotifications(reminder.scheduledNotificationIds);
-
-  const ids: string[] = [];
-  const isRecurring = reminder.recurrence.frequency !== 'none';
-
-  // Calcular cuántas ocurrencias programar
-  // Si tiene nags, reservar slots para ellas por ocurrencia
-  const nagsPerOccurrence = reminder.repeatIfNotCompleted ? 2 : 0;
-  const occurrenceCount = Math.floor(
-    MAX_SCHEDULED_NOTIFICATIONS / (1 + nagsPerOccurrence),
-  );
-
-  const occurrences = getNextOccurrences(
-    new Date(reminder.dueDate),
-    reminder.recurrence,
-    isRecurring ? occurrenceCount : 1,
-  );
-
-  for (const date of occurrences) {
-    if (date <= new Date()) continue;
-
-    // Notificación principal
-    const mainId = await scheduleOne(reminder, date, false);
-    if (mainId) ids.push(mainId);
-
-    // Notificaciones de recordatorio si no se completa
-    if (reminder.repeatIfNotCompleted && reminder.repeatIntervalMinutes) {
-      for (let i = 1; i <= nagsPerOccurrence; i++) {
-        const nagDate = addMinutes(date, reminder.repeatIntervalMinutes * i);
-        const nagId = await scheduleOne(reminder, nagDate, true);
-        if (nagId) ids.push(nagId);
-      }
-    }
-  }
-
-  return ids;
+export async function notificationsEnabled(): Promise<boolean> {
+  const { status } = await Notifications.getPermissionsAsync();
+  return status === 'granted' || status === 'undetermined';
 }
 
-async function scheduleOne(
-  reminder: Reminder,
-  date: Date,
-  isNag: boolean,
-): Promise<string | null> {
-  try {
-    const id = await Notifications.scheduleNotificationAsync({
+export function openNotificationSettings(): void {
+  Linking.openSettings();
+}
+
+let queue: Promise<void> = Promise.resolve();
+
+/**
+ * Deja programados exactamente los avisos que deben existir. Como iOS es la única fuente de
+ * verdad, un recordatorio borrado o editado nunca conserva avisos viejos.
+ */
+export function syncNotifications(reminders: Reminder[]): Promise<void> {
+  queue = queue.then(() => replaceAll(reminders)).catch((error) => {
+    console.warn('No se pudieron programar los avisos', error);
+  });
+  return queue;
+}
+
+async function replaceAll(reminders: Reminder[]): Promise<void> {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  for (const item of planNotifications(reminders)) {
+    await Notifications.scheduleNotificationAsync({
       content: {
-        title: isNag ? `⏰ Pendiente: ${reminder.title}` : reminder.title,
-        body: reminder.notes ?? 'Toca para ver el recordatorio',
-        data: {
-          reminderId: reminder.id,
-          type: isNag ? 'nag' : 'reminder',
-        },
+        title: notificationTitle(item),
+        body: item.notes ?? 'Toca para ver el recordatorio',
+        data: { reminderId: item.reminderId, type: item.isNag ? 'nag' : 'reminder' },
         sound: true,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date,
+        date: item.date,
       },
     });
-    return id;
-  } catch {
-    return null;
-  }
-}
-
-export async function cancelReminderNotifications(ids: string[]): Promise<void> {
-  await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
-}
-
-/**
- * Reprograma todos los recordatorios recurrentes que tienen
- * pocas notificaciones restantes. Se llama al abrir la app.
- */
-export async function replenishNotifications(
-  reminders: Reminder[],
-  onUpdate: (id: string, newIds: string[]) => void,
-): Promise<void> {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  const scheduledIds = new Set(scheduled.map((n) => n.identifier));
-
-  for (const reminder of reminders) {
-    if (reminder.status === 'completed') continue;
-    if (reminder.recurrence.frequency === 'none') continue;
-
-    const remaining = reminder.scheduledNotificationIds.filter((id) =>
-      scheduledIds.has(id),
-    ).length;
-
-    if (remaining < 3) {
-      const newIds = await scheduleReminder(reminder);
-      onUpdate(reminder.id, newIds);
-    }
   }
 }

@@ -36,40 +36,29 @@ export function isThisWeek(dueDate: string): boolean {
   return !isBefore(new Date(dueDate), now) && isBefore(new Date(dueDate), weekEnd);
 }
 
-/**
- * Calcula las próximas N ocurrencias de un recordatorio
- * basadas en su regla de recurrencia.
- */
-export function getNextOccurrences(
-  startDate: Date,
-  rule: RecurrenceRule,
-  count: number,
-): Date[] {
-  if (rule.frequency === 'none') return [startDate];
+/** Máximo de pasos al avanzar por una recurrencia: evita un ciclo sin fin con datos dañados. */
+const MAX_STEPS = 20000;
 
-  const occurrences: Date[] = [];
-  let current = new Date(startDate);
-  const now = new Date();
-
-  // Asegurarse de arrancar desde el futuro
-  if (isBefore(current, now)) {
-    current = advanceToNext(current, rule, now);
-  }
-
-  while (occurrences.length < count) {
-    occurrences.push(new Date(current));
-    current = advanceByOne(current, rule);
-  }
-
-  return occurrences;
+function daysInMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
 
-function advanceToNext(date: Date, rule: RecurrenceRule, after: Date): Date {
-  let current = new Date(date);
-  while (!isAfter(current, after)) {
-    current = advanceByOne(current, rule);
+/** Lleva una fecha al primer día válido de la regla, sin retroceder. */
+export function alignToRule(date: Date, rule: RecurrenceRule): Date {
+  if (rule.frequency === 'weekly' && rule.daysOfWeek?.length) {
+    let current = new Date(date);
+    for (let i = 0; i < 7; i++) {
+      if (rule.daysOfWeek.includes(current.getDay())) return current;
+      current = addDays(current, 1);
+    }
   }
-  return current;
+  if (rule.frequency === 'monthly' && rule.dayOfMonth) {
+    const candidate = setDate(date, Math.min(rule.dayOfMonth, daysInMonth(date)));
+    if (!isBefore(candidate, date)) return candidate;
+    const nextMonth = addMonths(setDate(date, 1), 1);
+    return setDate(nextMonth, Math.min(rule.dayOfMonth, daysInMonth(nextMonth)));
+  }
+  return new Date(date);
 }
 
 function advanceByOne(date: Date, rule: RecurrenceRule): Date {
@@ -78,31 +67,66 @@ function advanceByOne(date: Date, rule: RecurrenceRule): Date {
       return addDays(date, 1);
 
     case 'weekly': {
-      if (!rule.daysOfWeek || rule.daysOfWeek.length === 0) {
-        return addDays(date, 7);
-      }
-      // Buscar el próximo día de la semana habilitado
-      let next = addDays(date, 1);
-      for (let i = 0; i < 7; i++) {
-        if (rule.daysOfWeek.includes(next.getDay())) return next;
-        next = addDays(next, 1);
-      }
-      return addDays(date, 7);
+      if (!rule.daysOfWeek?.length) return addDays(date, 7);
+      return alignToRule(addDays(date, 1), rule);
     }
 
     case 'monthly': {
-      const nextMonth = addMonths(date, 1);
       if (rule.dayOfMonth) {
-        const maxDay = new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate();
-        return setDate(nextMonth, Math.min(rule.dayOfMonth, maxDay));
+        const nextMonth = addMonths(setDate(date, 1), 1);
+        return setDate(nextMonth, Math.min(rule.dayOfMonth, daysInMonth(nextMonth)));
       }
-      return nextMonth;
+      return addMonths(date, 1);
     }
 
     case 'custom':
-      return addDays(date, rule.intervalDays ?? 1);
+      return addDays(date, Math.max(1, rule.intervalDays ?? 1));
 
     default:
       return addDays(date, 1);
   }
+}
+
+/** Próximas ocurrencias posteriores a `now`. */
+export function getNextOccurrences(
+  startDate: Date,
+  rule: RecurrenceRule,
+  count: number,
+  now: Date = new Date(),
+): Date[] {
+  if (rule.frequency === 'none') return [startDate];
+
+  let current = alignToRule(startDate, rule);
+  for (let i = 0; i < MAX_STEPS && !isAfter(current, now); i++) {
+    current = advanceByOne(current, rule);
+  }
+
+  const occurrences: Date[] = [];
+  while (occurrences.length < count) {
+    occurrences.push(current);
+    current = advanceByOne(current, rule);
+  }
+  return occurrences;
+}
+
+/** Última ocurrencia ya pasada, si existe: aún puede tener re-avisos pendientes. */
+export function getLastOccurrence(startDate: Date, rule: RecurrenceRule, now: Date = new Date()): Date | null {
+  let current = alignToRule(startDate, rule);
+  if (isAfter(current, now)) return null;
+  for (let i = 0; i < MAX_STEPS; i++) {
+    const next = advanceByOne(current, rule);
+    if (isAfter(next, now)) return current;
+    current = next;
+  }
+  return current;
+}
+
+/** Fecha que sigue al completar un recordatorio recurrente: nunca se salta una ocurrencia. */
+export function nextDueDate(dueDate: Date, rule: RecurrenceRule, now: Date = new Date()): Date {
+  const after = isAfter(dueDate, now) ? dueDate : now;
+  let current = alignToRule(dueDate, rule);
+  for (let i = 0; i < MAX_STEPS && !isAfter(current, after); i++) {
+    current = advanceByOne(current, rule);
+  }
+  return current;
 }

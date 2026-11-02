@@ -7,10 +7,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
   Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimeField } from '../components/DateTimeField';
+import { showMessage } from '../utils/dialogs';
+import { alignToRule } from '../utils/dateHelpers';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { useReminders } from '../context/RemindersContext';
@@ -47,8 +48,6 @@ export function ReminderFormScreen({ route, navigation }: Props) {
       return d;
     })(),
   );
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [frequency, setFrequency] = useState<RecurrenceFrequency>(
     existing?.recurrence.frequency ?? 'none',
@@ -86,34 +85,50 @@ export function ReminderFormScreen({ route, navigation }: Props) {
     return {
       frequency,
       daysOfWeek: frequency === 'weekly' ? daysOfWeek : undefined,
-      dayOfMonth: frequency === 'monthly' ? parseInt(dayOfMonth) || undefined : undefined,
+      dayOfMonth: frequency === 'monthly' ? parseInt(dayOfMonth) || dueDate.getDate() : undefined,
       intervalDays: frequency === 'custom' ? parseInt(intervalDays) || 1 : undefined,
     };
   }
 
   async function handleSave() {
     if (!title.trim()) {
-      Alert.alert('Título requerido', 'Por favor ingresa un título para el recordatorio.');
+      showMessage('Título requerido', 'Por favor ingresa un título para el recordatorio.');
       return;
     }
 
     if (dueDate <= new Date()) {
-      Alert.alert('Fecha inválida', 'La fecha debe ser en el futuro.');
+      showMessage('Fecha inválida', 'La fecha debe ser en el futuro.');
+      return;
+    }
+
+    if (frequency === 'weekly' && daysOfWeek.length === 0) {
+      showMessage('Días requeridos', 'Elige al menos un día de la semana.');
+      return;
+    }
+
+    const monthDay = parseInt(dayOfMonth);
+    if (frequency === 'monthly' && dayOfMonth !== '' && (monthDay < 1 || monthDay > 31)) {
+      showMessage('Día inválido', 'El día del mes debe estar entre 1 y 31.');
+      return;
+    }
+
+    if (frequency === 'custom' && !(parseInt(intervalDays) >= 1)) {
+      showMessage('Intervalo inválido', 'Indica cada cuántos días, desde 1.');
       return;
     }
 
     setSaving(true);
     try {
       const now = new Date().toISOString();
+      const rule = buildRecurrenceRule();
       const reminder: Reminder = {
         id: existing?.id ?? generateId(),
         title: title.trim(),
         notes: notes.trim() || undefined,
         categoryId,
-        dueDate: dueDate.toISOString(),
-        recurrence: buildRecurrenceRule(),
+        dueDate: alignToRule(dueDate, rule).toISOString(),
+        recurrence: rule,
         status: 'pending',
-        scheduledNotificationIds: existing?.scheduledNotificationIds ?? [],
         repeatIfNotCompleted,
         repeatIntervalMinutes: repeatIfNotCompleted ? repeatInterval : undefined,
         createdAt: existing?.createdAt ?? now,
@@ -123,7 +138,7 @@ export function ReminderFormScreen({ route, navigation }: Props) {
       await saveReminder(reminder);
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', 'No se pudo guardar el recordatorio.');
+      showMessage('Error', 'No se pudo guardar el recordatorio.');
     } finally {
       setSaving(false);
     }
@@ -191,51 +206,7 @@ export function ReminderFormScreen({ route, navigation }: Props) {
 
       {/* Fecha y hora */}
       <Text style={styles.label}>Fecha y hora</Text>
-      <View style={styles.dateRow}>
-        <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
-          <Text style={styles.dateBtnText}>
-            {dueDate.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.dateBtn} onPress={() => setShowTimePicker(true)}>
-          <Text style={styles.dateBtnText}>
-            {dueDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={dueDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'inline' : 'default'}
-          minimumDate={new Date()}
-          onChange={(_, date) => {
-            setShowDatePicker(false);
-            if (date) {
-              const updated = new Date(dueDate);
-              updated.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-              setDueDate(updated);
-            }
-          }}
-        />
-      )}
-
-      {showTimePicker && (
-        <DateTimePicker
-          value={dueDate}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(_, date) => {
-            setShowTimePicker(false);
-            if (date) {
-              const updated = new Date(dueDate);
-              updated.setHours(date.getHours(), date.getMinutes(), 0, 0);
-              setDueDate(updated);
-            }
-          }}
-        />
-      )}
+      <DateTimeField value={dueDate} onChange={setDueDate} />
 
       {/* Recurrencia */}
       <Text style={styles.label}>Repetición</Text>
