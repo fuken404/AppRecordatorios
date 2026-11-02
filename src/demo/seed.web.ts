@@ -28,8 +28,8 @@ export async function seedReminders(reminders: Reminder[]): Promise<Reminder[]> 
   const seeded = [
     sample({
       id: 'demo-aviso',
-      title: 'Este aviso llegará en unos segundos',
-      notes: 'Tócalo cuando aparezca para abrir el recordatorio.',
+      title: 'Aviso de ejemplo',
+      notes: 'Llega unos segundos después de abrir la demo. Tócalo para abrir el recordatorio.',
       dueDate: addSeconds(now, FIRST_NOTICE_SECONDS).toISOString(),
       categoryId: 'cat-personal',
     }),

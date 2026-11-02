@@ -115,12 +115,18 @@ export function DemoShell({ children }: { children: React.ReactNode }) {
           En esta demo los avisos aparecen dentro de la app y los datos se quedan en tu navegador. En el
           iPhone son notificaciones reales de iOS.
         </p>
-        <div className="demo-animation"><IphoneAnimation /></div>
+        <button type="button" className="demo-open" onClick={() => setAnimationOpen(true)}>
+          Ver cómo avisa en iPhone
+        </button>
         <p className="demo-links">
           <a href="https://github.com/fuken404/AppRecordatorios">Código fuente</a>
           <span>Hecho por <a href="https://fuken404.dev">Maycol Fuquene</a></span>
         </p>
       </aside>
+
+      <section className="demo-animation" aria-label="Cómo avisa en un iPhone">
+        <IphoneAnimation />
+      </section>
 
       <main className="demo-stage">
         <div className="demo-bar">
@@ -148,65 +154,97 @@ const CSS = `
 html, body, #root { height: 100%; margin: 0; background: #0a4246; }
 body { overflow: hidden; }
 .demo, .demo * { box-sizing: border-box; }
-.demo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(390px, 440px); gap: 40px; height: 100dvh; padding: 28px clamp(24px, 4vw, 64px); color: #faf6ee; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; }
-.demo-intro { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
-.demo-kicker { margin: 0 0 8px; color: #f2a900; font-size: .85rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.demo-intro h1 { margin: 0 0 10px; max-width: 18ch; font: 700 clamp(2rem, 3.4vw, 3.1rem)/1.05 Fraunces, Georgia, serif; }
-.demo-lead { margin: 0 0 8px; max-width: 46ch; font-size: 1.08rem; line-height: 1.4; }
-.demo-note { margin: 0 0 18px; max-width: 52ch; color: #c9dcdb; font-size: .92rem; line-height: 1.4; }
-.demo-animation { flex: 1; min-height: 340px; }
-.demo-links { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 14px 0 0; font-size: .9rem; }
+
+/* Computador: texto y app, con la animación disponible en un botón. */
+.demo {
+  --app-h: min(calc(100dvh - 40px), 844px);
+  display: grid;
+  grid-template-columns: minmax(280px, 460px) minmax(360px, 400px);
+  grid-template-areas: 'intro stage';
+  justify-content: center;
+  align-items: center;
+  gap: clamp(32px, 6vw, 88px);
+  height: 100dvh;
+  padding: 20px clamp(24px, 4vw, 56px);
+  color: #faf6ee;
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+.demo-intro { grid-area: intro; max-height: var(--app-h); overflow-y: auto; }
+.demo-kicker { margin: 0 0 10px; color: #f2a900; font-size: .82rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.demo-intro h1 { margin: 0 0 14px; font: 700 clamp(1.9rem, 3vw, 3rem)/1.06 Fraunces, Georgia, serif; }
+.demo-lead { margin: 0 0 10px; font-size: 1.05rem; line-height: 1.4; }
+.demo-note { margin: 0 0 20px; color: #c9dcdb; font-size: .9rem; line-height: 1.4; }
+.demo-open { min-height: 46px; padding: 0 18px; border: 2px solid #f2a900; border-radius: 10px; background: none; color: #faf6ee; font: 700 .95rem 'Atkinson Hyperlegible', system-ui, sans-serif; cursor: pointer; }
+.demo-open:hover { background: rgb(242 169 0 / .15); }
+.demo-links { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 20px 0 0; font-size: .88rem; }
 .demo-links a { color: inherit; }
-.demo-stage { display: flex; flex-direction: column; min-height: 0; }
+.demo-animation { display: none; grid-area: animation; }
+.demo-stage { grid-area: stage; display: flex; flex-direction: column; height: var(--app-h); }
 .demo-bar { display: none; }
-.demo-frame { position: relative; flex: 1; min-height: 0; overflow: hidden; border: 8px solid #06272a; border-radius: 42px; background: #faf6ee; }
+.demo-frame { position: relative; flex: 1; min-height: 0; overflow: hidden; border: 8px solid #06272a; border-radius: 40px; background: #faf6ee; }
 .demo-app { position: absolute; z-index: 0; inset: 0; display: flex; } /* su propio contexto, para que el aviso quede encima */
 .demo-app > * { flex: 1; }
 
+/* Pantalla amplia: texto, animación y app, uno al lado del otro. */
+@media (min-width: 1240px) and (min-height: 640px) {
+  .demo {
+    grid-template-columns: minmax(280px, 420px) auto minmax(370px, 400px);
+    grid-template-areas: 'intro animation stage';
+    gap: clamp(32px, 4vw, 72px);
+  }
+  .demo-open { display: none; }
+  .demo-animation { display: block; }
+}
+
+.demo-dialog { position: fixed; z-index: 50; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 16px; overflow-y: auto; background: #0a4246; }
+.demo-close { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: 16px; z-index: 1; min-height: 44px; padding: 0 14px; border: 2px solid #faf6ee; border-radius: 10px; background: none; color: #faf6ee; font: 700 .95rem 'Atkinson Hyperlegible', system-ui, sans-serif; cursor: pointer; }
+
 .toast { position: absolute; z-index: 20; top: 10px; left: 10px; right: 10px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 16px; background: rgb(255 253 248 / .97); color: #1d2528; box-shadow: 0 8px 24px rgb(10 66 70 / .35); font: inherit; text-align: left; cursor: pointer; animation: toast-in .3s ease both; }
+.toast .sim-icon { width: 34px; height: 34px; border-radius: 8px; }
+.toast .sim-copy b { display: block; font-size: 14px; line-height: 1.25; }
+.toast .sim-copy small { display: block; color: #5c686b; font-size: 12px; line-height: 1.3; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(-24px); } }
 
-.sim { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 28px; height: 100%; margin: 0; }
-.sim-phone { position: relative; flex: none; width: 190px; height: 390px; overflow: hidden; border: 7px solid #06272a; border-radius: 34px; background: #0e5a5f; color: #fff; --cycle: 16s; }
-.sim-island { position: absolute; z-index: 5; top: 7px; left: 50%; width: 60px; height: 16px; margin-left: -30px; border-radius: 10px; background: #06272a; }
-.sim-lock { position: absolute; inset: 0; padding: 40px 8px 8px; text-align: center; background: linear-gradient(170deg, #17767c, #0a4246); animation: sim-lock var(--cycle) infinite; }
-.sim-date { margin: 0; font-size: 11px; }
-.sim-time { margin: 0 0 14px; font: 700 46px/1.05 Fraunces, Georgia, serif; }
-.sim-note { position: absolute; left: 8px; right: 8px; display: flex; align-items: center; gap: 6px; padding: 7px; border-radius: 12px; background: rgb(255 253 248 / .95); color: #1d2528; text-align: left; opacity: 0; }
-.sim-note em { align-self: flex-start; color: #5c686b; font-size: 8px; font-style: normal; }
-.sim-note--first { top: 118px; animation: sim-first var(--cycle) infinite; }
-.sim-note--nag { top: 118px; animation: sim-nag var(--cycle) infinite; }
-.sim-icon { flex: none; width: 24px; height: 24px; border-radius: 6px; background: #f2a900; }
+/* El iPhone animado: todas sus medidas parten de --u, así escala completo sin desbordarse. */
+.sim { --phone-h: min(calc(100dvh - 170px), 600px); --u: calc(var(--phone-h) / 390); display: flex; flex-direction: column; align-items: center; gap: 14px; width: calc(var(--u) * 250); max-width: 100%; margin: 0; }
+.sim-phone { position: relative; flex: none; width: calc(var(--u) * 190); height: var(--phone-h); overflow: hidden; border: calc(var(--u) * 7) solid #06272a; border-radius: calc(var(--u) * 34); background: #0e5a5f; color: #fff; --cycle: 16s; }
+.sim-island { position: absolute; z-index: 5; top: calc(var(--u) * 7); left: 50%; width: calc(var(--u) * 60); height: calc(var(--u) * 16); margin-left: calc(var(--u) * -30); border-radius: calc(var(--u) * 10); background: #06272a; }
+.sim-lock { position: absolute; inset: 0; padding: calc(var(--u) * 40) calc(var(--u) * 8) calc(var(--u) * 8); text-align: center; background: linear-gradient(170deg, #17767c, #0a4246); animation: sim-lock var(--cycle) infinite; }
+.sim-date { margin: 0; font-size: calc(var(--u) * 11); }
+.sim-time { margin: 0 0 calc(var(--u) * 14); font: 700 calc(var(--u) * 46)/1.05 Fraunces, Georgia, serif; }
+.sim-note { position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); display: flex; align-items: center; gap: calc(var(--u) * 6); padding: calc(var(--u) * 7); border-radius: calc(var(--u) * 12); background: rgb(255 253 248 / .95); color: #1d2528; text-align: left; opacity: 0; }
+.sim-note em { align-self: flex-start; color: #5c686b; font-size: calc(var(--u) * 8); font-style: normal; }
+.sim-note--first { top: calc(var(--u) * 118); animation: sim-first var(--cycle) infinite; }
+.sim-note--nag { top: calc(var(--u) * 118); animation: sim-nag var(--cycle) infinite; }
+.sim-icon { flex: none; width: calc(var(--u) * 24); height: calc(var(--u) * 24); border-radius: calc(var(--u) * 6); background: #f2a900; }
 .sim-copy { flex: 1; min-width: 0; }
-.sim-copy b { display: block; font-size: 10.5px; line-height: 1.2; }
-.toast .sim-copy b { font-size: 14px; }
-.sim-copy small { display: block; color: #5c686b; font-size: 9px; line-height: 1.25; }
-.toast .sim-copy small { font-size: 12px; }
-.sim-tap { position: absolute; width: 30px; height: 30px; border: 3px solid #fff; border-radius: 50%; background: rgb(242 169 0 / .75); opacity: 0; }
-.sim-tap--note { top: 130px; left: 78px; animation: sim-tap-note var(--cycle) infinite; }
-.sim-app { position: absolute; inset: 0; padding: 34px 10px 10px; background: #faf6ee; color: #1d2528; opacity: 0; animation: sim-app var(--cycle) infinite; }
-.sim-app-bar { margin: 0 0 10px; color: #0e5a5f; font-size: 12px; font-weight: 700; text-align: center; }
-.sim-card { display: grid; gap: 3px; padding: 11px; border: 1px solid #e3dccd; border-radius: 12px; background: #fffdf8; }
-.sim-card b { font-size: 13px; }
-.sim-card small { color: #5c686b; font-size: 10px; }
-.sim-pill { justify-self: start; padding: 1px 7px; border-radius: 9px; background: #e5eeed; color: #0e5a5f; font-size: 9px; }
-.sim-button { position: relative; height: 38px; margin-top: 12px; overflow: hidden; border-radius: 11px; background: #0e5a5f; color: #fff; font-size: 11px; font-weight: 700; animation: sim-button var(--cycle) infinite; }
+.sim-copy b { display: block; font-size: calc(var(--u) * 10.5); line-height: 1.2; }
+.sim-copy small { display: block; color: #5c686b; font-size: calc(var(--u) * 9); line-height: 1.25; }
+.sim-tap { position: absolute; width: calc(var(--u) * 26); height: calc(var(--u) * 26); border: calc(var(--u) * 2.5) solid #fff; border-radius: 50%; background: rgb(242 169 0 / .6); opacity: 0; }
+.sim-tap--note { top: calc(var(--u) * 134); right: calc(var(--u) * 16); animation: sim-tap-note var(--cycle) infinite; }
+.sim-app { position: absolute; inset: 0; padding: calc(var(--u) * 34) calc(var(--u) * 10) calc(var(--u) * 10); background: #faf6ee; color: #1d2528; opacity: 0; animation: sim-app var(--cycle) infinite; }
+.sim-app-bar { margin: 0 0 calc(var(--u) * 10); color: #0e5a5f; font-size: calc(var(--u) * 12); font-weight: 700; text-align: center; }
+.sim-card { display: grid; gap: calc(var(--u) * 3); padding: calc(var(--u) * 11); border: 1px solid #e3dccd; border-radius: calc(var(--u) * 12); background: #fffdf8; }
+.sim-card b { font-size: calc(var(--u) * 13); }
+.sim-card small { color: #5c686b; font-size: calc(var(--u) * 10); }
+.sim-pill { justify-self: start; padding: calc(var(--u) * 1) calc(var(--u) * 7); border-radius: calc(var(--u) * 9); background: #e5eeed; color: #0e5a5f; font-size: calc(var(--u) * 9); }
+.sim-button { position: relative; height: calc(var(--u) * 38); margin-top: calc(var(--u) * 12); overflow: hidden; border-radius: calc(var(--u) * 11); background: #0e5a5f; color: #fff; font-size: calc(var(--u) * 11); font-weight: 700; animation: sim-button var(--cycle) infinite; }
 .sim-button span { position: absolute; inset: 0; display: grid; place-items: center; }
 .sim-button-done { opacity: 0; animation: sim-done var(--cycle) infinite; }
 .sim-button-idle { animation: sim-idle var(--cycle) infinite; }
-.sim-tap--done { top: 150px; left: 74px; animation: sim-tap-done var(--cycle) infinite; }
-figcaption { min-width: 0; }
-.sim-captions { position: relative; min-height: 5.4em; margin: 0; padding: 0; list-style: none; }
-.sim-caption { position: absolute; inset: 0; font: 500 clamp(1.05rem, 1.7vw, 1.4rem)/1.25 Fraunces, Georgia, serif; opacity: 0; animation: var(--cycle, 16s) infinite; }
+.sim-tap--done { top: calc(var(--u) * 150); left: calc(var(--u) * 74); animation: sim-tap-done var(--cycle) infinite; }
+.sim figcaption { width: 100%; min-width: 0; text-align: center; }
+.sim-captions { position: relative; height: 4.1em; margin: 0; padding: 0; font-size: 1rem; list-style: none; }
+.sim-caption { position: absolute; inset: 0; font: 500 1rem/1.3 Fraunces, Georgia, serif; opacity: 0; animation: 16s infinite; }
 .sim-caption--1 { animation-name: cap1; }
 .sim-caption--2 { animation-name: cap2; }
 .sim-caption--3 { animation-name: cap3; }
 .sim-caption--4 { animation-name: cap4; }
-.sim-label { margin: 8px 0 0; color: #c9dcdb; font-size: .82rem; }
+.sim-label { margin: 4px 0 0; color: #c9dcdb; font-size: .76rem; }
 
 @keyframes sim-lock { 0%, 54% { opacity: 1; } 58%, 97% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes sim-first { 0%, 7% { opacity: 0; transform: translateY(-16px); } 10%, 28% { opacity: 1; transform: none; } 34%, 100% { opacity: 1; transform: translateY(66px) scale(.96); } }
-@keyframes sim-nag { 0%, 30% { opacity: 0; transform: translateY(-16px); } 34%, 54% { opacity: 1; transform: none; } 58%, 100% { opacity: 0; } }
+@keyframes sim-first { 0%, 7% { opacity: 0; transform: translateY(-16%); } 10%, 28% { opacity: 1; transform: none; } 34%, 100% { opacity: 1; transform: translateY(calc(var(--u) * 80)) scale(.96); } }
+@keyframes sim-nag { 0%, 30% { opacity: 0; transform: translateY(-16%); } 34%, 54% { opacity: 1; transform: none; } 58%, 100% { opacity: 0; } }
 @keyframes sim-tap-note { 0%, 45% { opacity: 0; transform: scale(1.3); } 49%, 52% { opacity: 1; transform: scale(.85); } 55%, 100% { opacity: 0; } }
 @keyframes sim-app { 0%, 54% { opacity: 0; } 58%, 96% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes sim-tap-done { 0%, 69% { opacity: 0; transform: scale(1.3); } 72%, 75% { opacity: 1; transform: scale(.85); } 78%, 100% { opacity: 0; } }
@@ -222,21 +260,20 @@ figcaption { min-width: 0; }
   .sim-phone *, .sim-caption, .toast { animation: none !important; }
   .sim-note--nag, .sim-tap, .sim-app { display: none; }
   .sim-note--first { opacity: 1; }
-  .sim-captions { min-height: 0; }
-  .sim-caption { position: static; margin-bottom: 8px; opacity: 1; font-size: 1rem; }
+  .sim-captions { height: auto; }
+  .sim-caption { position: static; margin-bottom: 6px; opacity: 1; }
 }
 
+/* Celular: la app ocupa toda la pantalla. */
 @media (max-width: 899px) {
   .demo { display: block; height: 100dvh; padding: 0; }
-  .demo-intro { display: none; }
+  .demo-intro, .demo-animation { display: none; }
   .demo-stage { height: 100dvh; }
   .demo-bar { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 10px; padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px; }
   .demo-bar p { margin: 0; font-size: .86rem; line-height: 1.2; }
   .demo-bar button { flex: none; min-height: 44px; padding: 0 12px; border: 2px solid #f2a900; border-radius: 10px; background: none; color: #faf6ee; font: 700 .9rem 'Atkinson Hyperlegible', system-ui, sans-serif; cursor: pointer; }
   .demo-frame { border: 0; border-radius: 0; }
-  .demo-dialog { position: fixed; z-index: 50; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 16px; overflow-y: auto; background: #0a4246; }
-  .demo-close { align-self: flex-end; min-height: 44px; padding: 0 14px; border: 2px solid #faf6ee; border-radius: 10px; background: none; color: #faf6ee; font: 700 .95rem 'Atkinson Hyperlegible', system-ui, sans-serif; }
-  .demo-dialog .sim { grid-template-columns: minmax(0, 1fr); justify-items: center; height: auto; gap: 14px; text-align: center; }
-  .demo-dialog .sim-captions { min-height: 4.2em; width: min(320px, 100%); }
+  .demo-dialog { justify-content: flex-start; padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+  .demo-dialog .sim { --phone-h: min(calc(100dvh - 230px), 560px); }
 }
 `;
